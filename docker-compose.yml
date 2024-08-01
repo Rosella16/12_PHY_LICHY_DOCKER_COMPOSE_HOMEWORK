@@ -1,0 +1,85 @@
+services:
+  postgres:
+    image: postgres:14-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: rosella22
+    ports:
+      - "5433:5432"
+    networks:
+      - mynetwork
+    volumes:
+      - db:/var/lib/postgresql/data
+
+  postgres_keycloak:
+    image: postgres:14-alpine
+    container_name: postgres_keycloak
+    environment:
+      POSTGRES_DB: keycloak_db
+      POSTGRES_USER: lichy
+      POSTGRES_PASSWORD: rosella22
+    ports:
+      - "5434:5432"
+    networks:
+      - mynetwork
+    volumes:
+      - keycloak_db:/var/lib/postgresql/data
+
+  keycloak:
+    image: keycloak/keycloak:nightly
+    container_name: keycloak
+    environment:
+      DB_VENDOR: POSTGRES
+      DB_ADDR: postgres_keycloak
+      DB_DATABASE: keycloak_db
+      DB_USER: lichy
+      DB_PASSWORD: rosella22
+      KEYCLOAK_USER: lichy
+      KEYCLOAK_PASSWORD: lichy
+      KC_BOOTSTRAP_ADMIN_USERNAME: lichy
+      KC_BOOTSTRAP_ADMIN_PASSWORD: lichy
+    command: ["start-dev"]
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    depends_on:
+      - postgres_keycloak
+    networks:
+      - mynetwork
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: 'rabbitmq'
+    environment:
+      RABBITMQ_DEFAULT_PASS: admin
+      RABBITMQ_DEFAULT_USER: admin
+    ports:
+        - 5672:5672
+        - 15672:15672
+
+  myapp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: expenses_image
+    container_name: expenses_container
+    ports:
+      - "8081:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/postgres
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: rosella22
+    depends_on:
+      - postgres
+    networks:
+      - mynetwork
+
+volumes:
+  db:
+  keycloak_db:
+
+networks:
+  mynetwork:
+    driver: bridge
